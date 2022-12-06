@@ -4,7 +4,6 @@ import numpy as np
 import os
 import time
 import mediapipe as mp
-import pyttsx3
 import tensorflow as tf
 import warnings
 warnings.filterwarnings('ignore')
@@ -52,7 +51,7 @@ def extract_keypoints(results):
     return np.concatenate([pose, face, lh, rh])
 
 # Load model:
-model = tf.keras.models.load_model('./bisindo8kata.h5')
+model = tf.keras.models.load_model('./bisindo1dropout.h5')
 
 model.compile(optimizer='adam',
               loss='categorical_crossentropy',
@@ -68,7 +67,6 @@ def prob_viz(res, actions, input_frame):
 
     for num, pred in enumerate(prediction):
         text = '{}: {}'.format(pred[0], round(float(pred[1]),4))
-        # cv2.rectangle(output_frame, (0,60+num*40), (int(prob*100), 90+num*40), colors[num], -1)
         cv2.putText(output_frame, text, (0, 85+num*40), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255,255,255), 2, cv2.LINE_AA) 
     return output_frame
 
@@ -77,18 +75,13 @@ sequence = []
 sentence = []
 threshold = 0.9
 tts = False
-actions = os.listdir('./Dataset')
+actions = np.array(['Halo', 'Perkenalkan', 'Nama', 'Saya', 'Z', 'A', 'I', 'N'])
 label_map = {label:num for num, label in enumerate(actions)}
-
-# Text to speak config:
-engine = pyttsx3.init()
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)
 
 ###############################################################################################
                                             # STREAMLIT #
 
-col1, col2 = st.columns((3,1))
+col1, col2 = st.columns((2,1))
 with col1:
     st.title('BISINDO Recognition')
     st.write('by Zain')
@@ -99,20 +92,18 @@ with col2:
 # Checkboxes
 st.header('Webcam')
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
     show_webcam = st.checkbox('Show webcam')
 with col2:
     show_landmarks = st.checkbox('Show landmarks')
-with col3:
-    speak = st.checkbox('Speak')
 
 # Webcam
 FRAME_WINDOW = st.image([])
 cap = cv2.VideoCapture(0) # device 1/2
 
 # Mediapipe model 
-with mp_holistic.Holistic(min_detection_confidence=0.7, min_tracking_confidence=0.7) as holistic:
+with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
     while show_webcam:
         # Read feed
         ret, frame = cap.read()
@@ -128,9 +119,9 @@ with mp_holistic.Holistic(min_detection_confidence=0.7, min_tracking_confidence=
         keypoints = extract_keypoints(results)
 
         sequence.append(keypoints)
-        sequence = sequence[-30:]
+        sequence = sequence[-60:]
         
-        if len(sequence) == 30:
+        if len(sequence) == 60:
             res = model.predict(np.expand_dims(sequence, axis=0))[0]
 
             #3. Viz logic
@@ -147,20 +138,12 @@ with mp_holistic.Holistic(min_detection_confidence=0.7, min_tracking_confidence=
                     sentence.append(actions[np.argmax(res)])
                     tts = True
 
-            if len(sentence) > 5: 
-                sentence = sentence[-5:]
+            if len(sentence) > 8: 
+                sentence = sentence[-8:]
 
             # Viz probabilities
             if show_landmarks:
                 image = prob_viz(res, actions, image)
-
-            # Text to speak:
-            if speak:
-                if tts: 
-                    engine.say(sentence[-1])
-                    engine.runAndWait()
-                    # time.sleep(0.5)
-                    tts = False
 
             # show result
             cv2.rectangle(image, (0,0), (640, 40), (245, 117, 16), -1)
@@ -168,7 +151,6 @@ with mp_holistic.Holistic(min_detection_confidence=0.7, min_tracking_confidence=
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
         
         # Show to screen
-        # cv2.imshow('OpenCV Feed', image)
         frameshow = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         FRAME_WINDOW.image(frameshow)
 
