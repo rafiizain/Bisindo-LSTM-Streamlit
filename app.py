@@ -64,9 +64,9 @@ if stream is not None:
     #st.info(f'trying to load model from tmp dir {model_dir}...')
     model = tf.keras.models.load_model(model_dir)
 
-model.compile(optimizer='adam',
-              loss='categorical_crossentropy',
-              metrics=['accuracy'])
+    model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
 
 # Visualize prediction:
 def prob_viz(res, actions, input_frame):
